@@ -103,7 +103,8 @@ jobs:
           {
             echo "VARIANT=${{ matrix.variant }}"
             for k in NAME BRAND TAG_SUFFIX RELEASE_CHANNEL CLI_JAR PATCHES_SCRIPT \
-                     PATCHES_GLOB PATCH_FLAG PATCHES_REPO KEYSTORE_NAME KEYSTORE_GLOB; do
+                     PATCHES_GLOB PATCH_FLAG PATCHES_REPO CLONE_PACKAGE_NAME \
+                     KEYSTORE_NAME KEYSTORE_GLOB; do
               printf '%s=%s\n' "$k" "${!k}"
             done
           } >> "$GITHUB_ENV"
@@ -286,13 +287,28 @@ jobs:
       - name: Patch YT APK and generate keystore
         if: steps.cache-keystore.outputs.cache-hit != 'true' && steps.download-keystore.outputs.keystore_found != 'true'
         run: |
-            java -jar $CLI_JAR patch $PATCH_FLAG $PATCHES_GLOB ${{ env.DOWNLOADS_DIR }}/yt-*.apk -o "${{ steps.set-filename.outputs.filename }}"
+            # CLONE_PACKAGE_NAME is empty for dev (default package) and set for
+            # stable so the two channels can be installed side by side.
+            clone_args=()
+            if [[ -n "${CLONE_PACKAGE_NAME:-}" ]]; then
+              clone_args=(-e "Clone app" -O "packageName=${CLONE_PACKAGE_NAME}")
+            fi
+
+            java -jar $CLI_JAR patch $PATCH_FLAG $PATCHES_GLOB "${clone_args[@]}" \
+              ${{ env.DOWNLOADS_DIR }}/yt-*.apk -o "${{ steps.set-filename.outputs.filename }}"
             mv $KEYSTORE_GLOB ${{ env.KEYSTORE_NAME }}
 
       - name: Patch YT APK with existing keystore
         if: steps.cache-keystore.outputs.cache-hit == 'true' || steps.download-keystore.outputs.keystore_found == 'true'
         run: |
-            java -jar $CLI_JAR patch $PATCH_FLAG $PATCHES_GLOB ${{ env.DOWNLOADS_DIR }}/yt-*.apk --keystore ${{ env.KEYSTORE_NAME }} -o "${{ steps.set-filename.outputs.filename }}"
+            clone_args=()
+            if [[ -n "${CLONE_PACKAGE_NAME:-}" ]]; then
+              clone_args=(-e "Clone app" -O "packageName=${CLONE_PACKAGE_NAME}")
+            fi
+
+            java -jar $CLI_JAR patch $PATCH_FLAG $PATCHES_GLOB "${clone_args[@]}" \
+              ${{ env.DOWNLOADS_DIR }}/yt-*.apk --keystore ${{ env.KEYSTORE_NAME }} \
+              -o "${{ steps.set-filename.outputs.filename }}"
 
       - name: Generate APK url
         id: generate-apk-url
