@@ -35,7 +35,7 @@ Per-variant settings (CLI repo, release channel, flags, keystore name, tag suffi
 [downloads-url]: https://github.com/azimstech/YTReVanced-Builder/releases/latest
 [release-shield-morphe-stable]: https://img.shields.io/github/v/release/AzimsTech/YTReVanced-Builder?filter=*-morphe-stable&style=for-the-badge
 [release-shield-morphe]: https://img.shields.io/github/v/release/AzimsTech/YTReVanced-Builder?filter=*-morphe&include_prereleases&style=for-the-badge
-[release-morphe-stable-url]: https://github.com/AzimsTech/YTReVanced-Builder/releases
+[release-morphe-stable-url]: https://github.com/AzimsTech/YTReVanced-Builder/releases/tag/v2.0.0-morphe-stable
 [release-morphe-url]: https://github.com/AzimsTech/YTReVanced-Builder/releases/tag/v2.1.0-dev.11-morphe
 
 <!-- Urls -->
