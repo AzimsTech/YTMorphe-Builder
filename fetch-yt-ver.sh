@@ -1,9 +1,11 @@
 #!/bin/bash
 set -euo pipefail
 
-VARIANT="${VARIANT:-revanced}"
+VARIANT="${VARIANT:-morphe}"
 . "$(dirname "$0")/variants/${VARIANT}.env"
 
+# LIST_EXTRA is variant-driven: dev passes --include-experimental, while
+# stable leaves it empty so only non-experimental YouTube versions are listed.
 latest=$(java -jar $CLI_JAR list-patches $LIST_FLAGS \
   --filter-package-name=com.google.android.youtube $LIST_EXTRA \
   | grep -E '^\s+[0-9]+\.[0-9]+\.[0-9]+\s*$' \

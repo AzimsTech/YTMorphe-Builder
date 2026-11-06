@@ -8,8 +8,8 @@ on:
         type: choice
         options:
           - all
-          - revanced
           - morphe
+          - morphe-stable
         default: all
   schedule:
     - cron: '0 11 * * *'  # Daily build at 7:00 PM MYT (11:00 UTC)
@@ -54,12 +54,12 @@ jobs:
 
           if [ "$EVENT" = "workflow_dispatch" ]; then
             case "$INPUT_VARIANT" in
-              revanced) selected+=(revanced) ;;
-              morphe)   selected+=(morphe) ;;
-              *)        selected+=(revanced morphe) ;;
+              morphe)        selected+=(morphe) ;;
+              morphe-stable) selected+=(morphe-stable) ;;
+              *)             selected+=(morphe morphe-stable) ;;
             esac
           else
-            for v in revanced morphe; do
+            for v in morphe morphe-stable; do
               . "variants/$v.env"
               latest=$(VARIANT="$v" ./"$PATCHES_SCRIPT" --version-only || true)
               current=$(git tag -l "*-${TAG_SUFFIX}" --sort=-version:refname | head -n1 || true)
@@ -102,8 +102,8 @@ jobs:
           . "variants/${{ matrix.variant }}.env"
           {
             echo "VARIANT=${{ matrix.variant }}"
-            for k in NAME BRAND TAG_SUFFIX CLI_JAR PATCHES_SCRIPT PATCHES_GLOB \
-                     PATCH_FLAG PATCHES_REPO KEYSTORE_NAME KEYSTORE_GLOB; do
+            for k in NAME BRAND TAG_SUFFIX RELEASE_CHANNEL CLI_JAR PATCHES_SCRIPT \
+                     PATCHES_GLOB PATCH_FLAG PATCHES_REPO KEYSTORE_NAME KEYSTORE_GLOB; do
               printf '%s=%s\n' "$k" "${!k}"
             done
           } >> "$GITHUB_ENV"
@@ -143,8 +143,8 @@ jobs:
           VERSION=$(./get-latest-cli.sh)
           echo "Downloaded CLI version: $VERSION"
 
-      - name: Get Dev Patches version
-        id: get-dev-patches-version
+      - name: Get patches version
+        id: get-patches-version
         run: |
           VERSION=$(./$PATCHES_SCRIPT --version-only)
           echo "version=$VERSION" >> $GITHUB_OUTPUT
@@ -155,7 +155,7 @@ jobs:
         with:
           path: ${{ env.PATCHES_GLOB }}
           # Same prefix-proofing as the CLI cache key (v1.48.0 vs v1.48.0-dev.18).
-          key: ${{ env.TAG_SUFFIX }}-patches-${{ steps.get-dev-patches-version.outputs.version }}-bundle
+          key: ${{ env.TAG_SUFFIX }}-patches-${{ steps.get-patches-version.outputs.version }}-bundle
 
       - name: Download ${{ env.BRAND }} Patches
         if: steps.cache-patches.outputs.cache-hit != 'true'
@@ -196,7 +196,7 @@ jobs:
           latest_version=$(./$PATCHES_SCRIPT --version-only || true)
           current_tag=$(git tag -l "*-${TAG_SUFFIX}" --sort=-version:refname | head -n1 || true)
 
-          # Strip -<suffix> before comparing so v1.x.x-dev.8 == v1.x.x-dev.8-revanced
+          # Strip -<suffix> before comparing so v1.x.x-dev.8 == v1.x.x-dev.8-morphe
           # If equal, fallback to previous tag
           if [ -n "$latest_version" ] && [ "$latest_version" = "${current_tag%-${TAG_SUFFIX}}" ]; then
             current_tag=$(git tag -l "*-${TAG_SUFFIX}" --sort=-version:refname | sed -n '2p' || true)
@@ -272,7 +272,7 @@ jobs:
       - name: Set output filename
         id: set-filename
         run: |
-          FILENAME="${NAME}_${{ steps.yt-version.outputs.version }}_${{ steps.get-dev-patches-version.outputs.version }}-patched.apk"
+          FILENAME="${NAME}_${{ steps.yt-version.outputs.version }}_${{ steps.get-patches-version.outputs.version }}-patched.apk"
           echo "filename=$FILENAME" >> $GITHUB_OUTPUT
 
       - name: Download keystore from latest release
@@ -314,13 +314,13 @@ jobs:
         run: |
           YT_VERSION="${{ steps.yt-version.outputs.version }}"
           CLI_VERSION="${{ steps.get-latest-cli-version.outputs.version }}"
-          PATCHES_VERSION="${{ steps.get-dev-patches-version.outputs.version }}"
+          PATCHES_VERSION="${{ steps.get-patches-version.outputs.version }}"
           URL="${{ steps.generate-apk-url.outputs.url }}"
           FILENAME="${{ steps.set-filename.outputs.filename }}"
           ORIGINAL_APK="${{ env.DOWNLOADS_DIR }}/yt-${YT_VERSION}.apk"
           HAS_CHANGELOG="${{ steps.generate-changelog.outputs.has_changelog }}"
           CHANGELOG_URL="${{ steps.generate-changelog.outputs.url }}"
-          DL_URL="https://github.com/${{ github.repository }}/releases/download/${{ steps.get-dev-patches-version.outputs.version }}-${{ env.TAG_SUFFIX }}/${FILENAME}"
+          DL_URL="https://github.com/${{ github.repository }}/releases/download/${{ steps.get-patches-version.outputs.version }}-${{ env.TAG_SUFFIX }}/${FILENAME}"
 
           # Generate changelog section if available
           CHANGELOG_SECTION=""
@@ -350,13 +350,16 @@ jobs:
       - name: Create GitHub release
         uses: softprops/action-gh-release@v3
         with:
-          name: "📺 ${{ env.NAME }} ${{ steps.yt-version.outputs.version }} | 🧩 ${{ steps.get-dev-patches-version.outputs.version }}"
-          tag_name: ${{ steps.get-dev-patches-version.outputs.version }}-${{ env.TAG_SUFFIX }}
+          name: "📺 ${{ env.NAME }} ${{ steps.yt-version.outputs.version }} | 🧩 ${{ steps.get-patches-version.outputs.version }}"
+          tag_name: ${{ steps.get-patches-version.outputs.version }}-${{ env.TAG_SUFFIX }}
           body_path: yt-${{ env.TAG_SUFFIX }}-info.md
           files: |
             *.apk
             *.keystore
-          make_latest: true
+          # Dev builds are GitHub prereleases so Obtainium/release badges can
+          # distinguish them from stable, and only stable can be "latest".
+          prerelease: ${{ env.RELEASE_CHANNEL != 'stable' }}
+          make_latest: ${{ env.RELEASE_CHANNEL == 'stable' }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -377,7 +380,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-          for s in revanced morphe; do
+          for s in morphe morphe-stable; do
             tag=$(git tag -l "*-${s}" --sort=-version:refname | head -n1)
             [ -z "$tag" ] && continue
             url="https://github.com/${GITHUB_REPOSITORY}/releases/tag/${tag}"

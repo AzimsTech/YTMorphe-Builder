@@ -1,26 +1,35 @@
 #!/bin/bash
 set -euo pipefail
 
-VARIANT="${VARIANT:-revanced}"
+VARIANT="${VARIANT:-morphe}"
 . "$(dirname "$0")/variants/${VARIANT}.env"
 
+CHANNEL="${RELEASE_CHANNEL:-dev}"
 GH_API="https://api.github.com/repos/${CLI_REPO}/releases"
 
+if [[ "$CHANNEL" == "stable" ]]; then
+  # /releases/latest is the newest non-prerelease, non-draft release.
+  releases=$(curl -sL "${GH_API}/latest")
+  releases=$(echo "$releases" | jq -c '[.]')
+else
+  releases=$(curl -sL "${GH_API}?per_page=10")
+fi
+
 # Sort by published_at descending to guarantee newest release (including prereleases)
-jar_url=$(curl -sL "$GH_API" | jq -r --arg re "$CLI_JAR_REGEX" '
+jar_url=$(echo "$releases" | jq -r --arg re "$CLI_JAR_REGEX" '
   sort_by(.published_at) | reverse
   | .[0].assets[]
   | select(.name | test($re))
   | .browser_download_url' | head -n1)
 
-[ -n "$jar_url" ] || { echo "❌ No CLI jar found (variant: $VARIANT)" >&2; exit 1; }
+[ -n "$jar_url" ] || { echo "❌ No CLI jar found (variant: $VARIANT, channel: $CHANNEL)" >&2; exit 1; }
 
 filename="${jar_url##*/}"
 version=$(echo "$filename" | sed -E "$CLI_VERSION_SED")
 
 # Version-only mode
 if [[ "${1:-}" == "--version-only" ]]; then
-  echo "$BRAND CLI latest version: $version" >&2
+  echo "$BRAND CLI $CHANNEL version: $version" >&2
   echo "$version"
   exit 0
 fi

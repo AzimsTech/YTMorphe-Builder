@@ -23,7 +23,7 @@ jobs:
       - name: Cleanup old releases and tags
         shell: bash
         run: |
-          for SUFFIX in "-revanced" "-morphe"; do
+          for SUFFIX in "-morphe" "-morphe-stable"; do
             KEEP=5
             echo "=== Cleaning up $SUFFIX releases (keeping last $KEEP) ==="
 
