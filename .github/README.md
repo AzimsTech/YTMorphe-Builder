@@ -38,7 +38,7 @@ Per-variant settings (CLI repo, release channel, flags, keystore name, tag suffi
 [release-shield-morphe-stable]: https://img.shields.io/github/v/release/AzimsTech/YTMorphe-Builder?filter=*-morphe-stable&style=for-the-badge
 [release-shield-morphe]: https://img.shields.io/github/v/release/AzimsTech/YTMorphe-Builder?filter=*-morphe&include_prereleases&style=for-the-badge
 [release-morphe-stable-url]: https://github.com/AzimsTech/YTMorphe-Builder/releases/tag/v2.1.0-morphe-stable
-[release-morphe-url]: https://github.com/AzimsTech/YTMorphe-Builder/releases/tag/v2.2.0-dev.2-morphe
+[release-morphe-url]: https://github.com/AzimsTech/YTMorphe-Builder/releases/tag/v2.2.0-dev.4-morphe
 
 <!-- Urls -->
 
